@@ -1,0 +1,154 @@
+@startuml
+
+skinparam class {
+    BackgroundColor<<Interface>> LightGray
+    BorderColor<<Interface>> Black
+}
+
+interface DataProcessor <<Interface>> {
+    + process(data: String): Map<String, Object>
+}
+
+interface DataSource <<Interface>> {
+    + getData(): String
+    + getMetadata(): Map<String, Object>
+}
+
+interface FileType <<Interface>> {
+    + validateFile(path: String): boolean
+}
+
+class TextParser {
+    + validateFile(path: String): boolean
+}
+
+class Analytics {
+    - processors: List<DataProcessor>
+    - analyticsResult: AnalyticsResult
+    + Analytics()
+    + Analytics(List<DataProcessor> processors, AnalyticsResult analyticsResult)
+    + processData(source: DataSource): AnalyticsResult
+    + addProcessor(DataProcessor processor): void
+    + removeProcessor(DataProcessor processor): void
+    + getAnalyticsResult(): AnalyticsResult
+    + setProcessors(List<DataProcessor> processors): void
+    + setAnalyticsResult(AnalyticsResult analyticsResult): void
+}
+
+class Monitor {
+    - directory: Path
+    - processedDirectory: Path
+    - fileProcessor: FileProcessor
+    - directoryWatcher: DirectoryWatcher
+    + Monitor(Analytics analytics, FileType fileType)
+    + startMonitor() throws IOException
+    + stop()
+    - initializeDirectories() throws IOException
+    - processExistingFiles()
+}
+
+class DirectoryWatcher {
+    - watchService: WatchService
+    - directory: Path
+    - fileProcessor: FileProcessor
+    - isRunning: AtomicBoolean
+    + DirectoryWatcher(Path directory, FileProcessor fileProcessor)
+    + startWatching()
+    + stop()
+}
+
+class FileProcessor {
+    - analytics: Analytics
+    - fileType: FileType
+    - processedDirectory: Path
+    - processingFiles: ConcurrentHashMap<String, Boolean>
+    + FileProcessor(Analytics analytics, FileType fileType, Path processedDirectory)
+    + processFile(file: Path)
+    + shouldProcess(file: Path): boolean
+    - logResults(file: Path, result: AnalyticsResult, source: DataSource)
+    - moveToProcessed(file: Path)
+    - isInProcessedDirectory(file: Path): boolean
+}
+
+class FileSource {
+    - content: String
+    - metadata: Map<String, Object>
+    - fileType: FileType
+    - path: String
+    + FileSource(FileType fileType, String path)
+    + getData(): String
+    + getMetadata(): Map<String, Object>
+}
+
+class AnalyticsResult {
+    - result: Map<String, Object>
+    + getResult(): Map<String, Object>
+    + setResult(Map<String, Object> result): void
+    + addResult(String key, Object value): void
+    + clearResults(): void
+    + toString(): String
+}
+
+class WordCountProcessor {
+    - wordCount: int
+    + WordCountProcessor()
+    + process(data: String): Map<String, Object>
+    + getResult(): Object
+}
+
+class DotCountProcessor {
+    - dotCount: int
+    + DotCountProcessor()
+    + process(data: String): Map<String, Object>
+    + getResult(): Object
+}
+
+class MostUsedWordProcessor {
+    - result: Map<String, Object>
+    + MostUsedWordProcessor()
+    + process(data: String): Map<String, Object>
+    + getResult(): Object
+}
+
+Monitor --> FileProcessor : creates
+Monitor --> DirectoryWatcher : creates
+DirectoryWatcher --> FileProcessor : uses
+FileProcessor --> Analytics : uses
+FileProcessor --> FileType : uses
+FileProcessor ..> AnalyticsResult : uses
+FileProcessor ..> FileSource : creates
+FileSource ..> FileType : uses
+Analytics --> DataProcessor : uses
+Analytics --* AnalyticsResult : owns
+FileSource ..|> DataSource
+WordCountProcessor ..|> DataProcessor
+DotCountProcessor ..|> DataProcessor
+MostUsedWordProcessor ..|> DataProcessor
+TextParser ..|> FileType
+
+note right of Monitor
+    Coordinates file monitoring and processing.
+    Manages directory structure.
+end note
+
+note right of DirectoryWatcher
+    Watches directory for file changes.
+    Handles file system events.
+end note
+
+note right of FileProcessor
+    Handles file processing and movement.
+    Ensures thread-safe file operations.
+end note
+
+note right of Analytics
+    Processes data using multiple processors.
+    Aggregates processing results.
+end note
+
+note right of TextParser
+    Validates text files.
+    Implements FileType interface.
+end note
+
+@enduml
